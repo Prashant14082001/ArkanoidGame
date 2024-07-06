@@ -1,0 +1,105 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Canvas Drawing</title>
+    <link rel="stylesheet" href="{% static 'css/canvas.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+</head>
+<body>
+    <!-- Navbar with logout option -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Canvas App</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'arkanoid_game' %}">Play Arkanoid Game</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Canvas for drawing -->
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12">
+                <canvas id="drawingCanvas" width="1000" height="550"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/jquery.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    <script>
+
+        const roomName = "{{ room_name }}";
+        const ws = new WebSocket('ws://' + window.location.host + '/ws/canvas/' + roomName + '/');
+
+        const canvas = document.getElementById('drawingCanvas');
+        const context = canvas.getContext('2d');
+
+        let drawing = false;
+
+        
+
+        canvas.addEventListener('mousedown', (event) => {
+            drawing = true;
+            draw(event.clientX - canvas.offsetLeft, event.clientY - canvas.offsetTop, 'start');
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (drawing) {
+                draw(event.clientX - canvas.offsetLeft, event.clientY - canvas.offsetTop, 'move');
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            drawing = false;
+            context.beginPath(); 
+        });
+
+        function draw(x, y, type) {
+            if (type === 'start') {
+                context.beginPath();
+                context.moveTo(x, y);
+            } else if (type === 'move') {
+                context.lineTo(x, y);
+                context.stroke();
+            }
+
+           
+            ws.send(JSON.stringify({
+                'x': x,
+                'y': y,
+                'type': type
+            }));
+        }
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'start') {
+                context.beginPath();
+                context.moveTo(data.x, data.y);
+            } else if (data.type === 'move') {
+                context.lineTo(data.x, data.y);
+                context.stroke();
+            }
+        };
+
+   
+    </script>
+
+    
+
+</body>
+</html>

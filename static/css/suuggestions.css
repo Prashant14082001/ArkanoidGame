@@ -1,0 +1,65 @@
+
+    body {
+      background-color: #f0f0f0;
+    }
+    nav {
+      background-color: #333;
+      color: white;
+      padding: 10px 0;
+    }
+    nav h1 {
+      margin: 0;
+    }
+    .form-container {
+      margin-top: 50px;
+      padding: 30px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .btn-default {
+      background-color: #007bff;
+      color: white;
+    }
+    .btn-default:hover {
+      background-color: #0056b3;
+    }
+    .weather-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      margin-top: 20px;
+    }
+    .weather-info h1, .weather-info h3, .weather-info h5 {
+      margin: 10px 0;
+    }
+    .weather-info h1 {
+      font-size: 2.5em;
+    }
+    .weather-info h3 {
+      font-size: 1.5em;
+    }
+    .weather-info h5 {
+      font-size: 1.2em;
+    }
+    .error-message {
+      color: red;
+      margin-top: 20px;
+    }
+    .autocomplete-suggestions {
+      border: 1px solid #ddd;
+      background: #fff;
+      max-height: 150px;
+      overflow-y: auto;
+      position: absolute;
+      width: 100%;
+      z-index: 1000;
+    }
+    .autocomplete-suggestion {
+      padding: 10px;
+      cursor: pointer;
+    }
+    .autocomplete-suggestion:hover {
+      background-color: #f0f0f0;
+    }
