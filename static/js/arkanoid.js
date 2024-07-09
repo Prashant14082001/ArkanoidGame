@@ -10,32 +10,84 @@ document.addEventListener('DOMContentLoaded', () => {
     const bottomRectHeight = Number(canvas.dataset.bottomRectHeight);
 
     let gameState = {};
+    let gameInterval = null;
+    let gameRunning = false;
 
+    // Fetch initial game state
+    fetch('/game_state/')
+        .then(response => response.json())
+        .then(data => {
+            gameState = data;
+            drawArkanoidElements();
+            if (gameState.lives === 0) {
+                gameOver();
+            }
+        });
+
+    // Event listener for Start Game button
+    document.getElementById('startGameBtn').addEventListener('click', () => {
+        if (!gameRunning) {
+            gameRunning = true;
+            startGame();
+        }
+    });
+
+    // Start the game loop
+    function startGame() {
+        gameInterval = setInterval(fetchGameState, 10);
+    }
+
+    // Fetch game state from server
     function fetchGameState() {
         fetch('/game_state/')
             .then(response => response.json())
             .then(data => {
                 gameState = data;
                 drawArkanoidElements();
+                if (gameState.lives === 0) {
+                    gameOver();
+                }
             });
     }
 
-    function sendKeyPress(key) {
-        fetch('/game_state/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({ key: key })
-        })
-        .then(response => response.json())
-        .then(data => {
-            gameState = data;
-            drawArkanoidElements();
-        });
+    // Handle game over condition
+    function gameOver() {
+        
+        gameRunning = false;
+        alert('Game Over');
+        
+        setTimeout(() => {
+            window.location.reload(); 
+        }, 100); 
     }
 
+    // Send key press events to server
+    document.addEventListener('keydown', (event) => {
+        if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+            sendKeyPress(event.key);
+        }
+    });
+
+    // Send key press data to server
+    function sendKeyPress(key) {
+        if (gameRunning) {
+            fetch('/game_state/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ key: key })
+            })
+            .then(response => response.json())
+            .then(data => {
+                gameState = data;
+                drawArkanoidElements();
+            });
+        }
+    }
+
+    // Utility function to get CSRF token from cookies
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -51,6 +103,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return cookieValue;
     }
 
+    // Draw game elements on canvas
+    function drawArkanoidElements() {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        drawBricks();
+        drawBall();
+        drawPaddle();
+        drawLives();
+    }
+
+    // Draw bricks on canvas
     function drawBricks() {
         gameState.bricks.forEach(brick => {
             if (brick.status === 1) {
@@ -60,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Draw ball on canvas
     function drawBall() {
         const ball = gameState.ball;
         context.beginPath();
@@ -69,24 +132,17 @@ document.addEventListener('DOMContentLoaded', () => {
         context.closePath();
     }
 
+    // Draw paddle on canvas
     function drawPaddle() {
         const paddle = gameState.paddle;
         context.fillStyle = 'green';
         context.fillRect(paddle.x, canvas.height - bottomRectHeight - gap, bottomRectWidth, bottomRectHeight);
     }
 
-    function drawArkanoidElements() {
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        drawBricks();
-        drawBall();
-        drawPaddle();
+    // Draw lives counter on canvas
+    function drawLives() {
+        context.font = '16px Arial';
+        context.fillStyle = 'red';
+        context.fillText('Lives: ' + gameState.lives, canvas.width - 60, 15);
     }
-
-    document.addEventListener('keydown', (event) => {
-        if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-            sendKeyPress(event.key);
-        }
-    });
-
-    setInterval(fetchGameState, 10);
 });

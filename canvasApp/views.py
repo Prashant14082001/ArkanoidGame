@@ -1,7 +1,7 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate,login,logout,update_session_auth_hash
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import IntegrityError
@@ -34,7 +34,6 @@ def LoginPage(request):
     if request.method =='POST':
         username = request.POST.get('username')
         pass1 = request.POST.get('password')
-        # print(username,pass1)
         user = authenticate(request,username=username,password=pass1)
         if user:
             login(request,user)
@@ -52,10 +51,6 @@ def LogOutPage(request):
 @login_required
 def canvas(request, room_name):
     return render(request, 'canvas.html', {'room_name': room_name})
-
-
-
-
 
 def arkanoid_game(request):
     game_params = {
@@ -79,7 +74,7 @@ game_state = {
     },
     'paddle': {
         'x': 450,
-        'y' :515,
+        'y': 520,
         'width': 100,
         'height': 20,
         'speed': 60
@@ -87,8 +82,14 @@ game_state = {
     'bricks': [
         {'x': i * 66, 'y': j * 26, 'status': 1}
         for j in range(8) for i in range(15)
-    ]
+    ],
+    'lives': 2,
+    'gameOver':False
 }
+
+def reset_ball_and_paddle():
+    game_state['ball'] = {'x': 500, 'y': 470, 'speed_x': 2, 'speed_y': 2}
+    game_state['paddle'] = {'x': 450, 'y': 520, 'width': 100, 'height': 20, 'speed': 60}
 
 def game_state_view(request):
     global game_state
@@ -101,37 +102,40 @@ def game_state_view(request):
         elif key == 'ArrowRight':
             game_state['paddle']['x'] = min(game_state['paddle']['x'] + game_state['paddle']['speed'], 1000 - game_state['paddle']['width'])
 
-    
     ball = game_state['ball']
     ball['x'] += ball['speed_x']
     ball['y'] += ball['speed_y']
 
-    
     if ball['x'] <= 0 or ball['x'] >= 1000:
         ball['speed_x'] = -ball['speed_x']
     if ball['y'] <= 0:
         ball['speed_y'] = -ball['speed_y']
 
-    
-    if ball['y'] >= 515 and game_state['paddle']['x'] <= ball['x'] <= game_state['paddle']['x'] + game_state['paddle']['width']:
-        ball['speed_y'] = -ball['speed_y']
+    if ball['y'] >= 520 and game_state['paddle']['x'] <= ball['x'] <= game_state['paddle']['x'] + game_state['paddle']['width']:
+        hit_pos = (ball['x'] - game_state['paddle']['x']) / game_state['paddle']['width']
+        if hit_pos == 0.5:
+            ball['speed_x'] = 2 if ball['speed_x'] > 0 else -2
+            ball['speed_y'] = -2
+        else:
+            ball['speed_y'] *= -1
 
-    
     for brick in game_state['bricks']:
         if brick['status'] == 1:
             if (brick['x'] <= ball['x'] <= brick['x'] + 60) and (brick['y'] <= ball['y'] <= brick['y'] + 20):
-                brick['status'] = 0
-                ball['speed_y'] = -ball['speed_y']
+                if ball['speed_y'] < 0:
+                    brick['status'] = 0
+                ball['speed_y'] *= -1
 
-    
     if ball['y'] >= 550:
-        game_state['ball'] = {'x': 500, 'y': 470, 'speed_x': 2, 'speed_y': 2}
-        game_state['paddle'] = {'x': 450,'y': 515, 'width': 100, 'height': 20, 'speed': 60}
-        game_state['bricks'] = [
-            {'x': i * 66, 'y': j * 26, 'status': 1}
-            for j in range(8) for i in range(15)
-        ]
+        game_state['lives'] -= 1
+        if game_state['lives'] >= 0:
+            reset_ball_and_paddle()
+        else:
+            game_state['lives'] = 2
+            game_state['bricks'] = [
+                {'x': i * 66, 'y': j * 26, 'status': 1}
+                for j in range(8) for i in range(15)
+            ]
+            reset_ball_and_paddle()
 
     return JsonResponse(game_state)
-
-
