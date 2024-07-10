@@ -12,19 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameState = {};
     let gameInterval = null;
     let gameRunning = false;
+    let restartGameRequested = false;
 
-    // Fetch initial game state
-    fetch('/game_state/')
-        .then(response => response.json())
-        .then(data => {
-            gameState = data;
-            drawArkanoidElements();
-            if (gameState.lives === 0) {
-                gameOver();
-            }
-        });
+    
+    fetchInitialGameState();
 
-    // Event listener for Start Game button
+    
     document.getElementById('startGameBtn').addEventListener('click', () => {
         if (!gameRunning) {
             gameRunning = true;
@@ -32,43 +25,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Start the game loop
-    function startGame() {
-        gameInterval = setInterval(fetchGameState, 10);
-    }
+    
+    document.getElementById('restartGameBtn').addEventListener('click', () => {
+        if (!gameRunning && restartGameRequested) {
+           
+            window.location.reload()
+            
+        }
+    });
 
-    // Fetch game state from server
-    function fetchGameState() {
-        fetch('/game_state/')
+    
+    function fetchInitialGameState() {
+        fetch('/initial_game_state/')
             .then(response => response.json())
             .then(data => {
                 gameState = data;
                 drawArkanoidElements();
-                if (gameState.lives === 0) {
-                    gameOver();
-                }
+                checkGameState();
+                restartGameRequested = false;
             });
     }
 
-    // Handle game over condition
-    function gameOver() {
-        
-        gameRunning = false;
-        alert('Game Over');
-        
-        setTimeout(() => {
-            window.location.reload(); 
-        }, 100); 
+    
+    function startGame() {
+        gameInterval = setInterval(fetchGameState, 10); 
     }
 
-    // Send key press events to server
+    
+    function fetchGameState() {
+        if (gameRunning) {
+            fetch('/game_state/')
+                .then(response => response.json())
+                .then(data => {
+                    gameState = data;
+                    drawArkanoidElements();
+                    checkGameState();
+                });
+        }
+    }
+
+    
+    function checkGameState() {
+        if (gameState.game_over) {
+            gameRunning = false;
+            showRestartButton();
+            restartGameRequested = true; 
+            clearInterval(gameInterval); 
+        }
+    }
+
+    
+    function showRestartButton() {
+        const restartButton = document.getElementById('restartGameBtn');
+        restartButton.style.display = 'inline-block';
+    }
+
+    
     document.addEventListener('keydown', (event) => {
         if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
             sendKeyPress(event.key);
         }
     });
 
-    // Send key press data to server
+    
     function sendKeyPress(key) {
         if (gameRunning) {
             fetch('/game_state/', {
@@ -87,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Utility function to get CSRF token from cookies
+    
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -103,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return cookieValue;
     }
 
-    // Draw game elements on canvas
+    
     function drawArkanoidElements() {
         context.clearRect(0, 0, canvas.width, canvas.height);
         drawBricks();
@@ -112,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         drawLives();
     }
 
-    // Draw bricks on canvas
+    
     function drawBricks() {
         gameState.bricks.forEach(brick => {
             if (brick.status === 1) {
@@ -122,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Draw ball on canvas
+    
     function drawBall() {
         const ball = gameState.ball;
         context.beginPath();
@@ -132,17 +151,20 @@ document.addEventListener('DOMContentLoaded', () => {
         context.closePath();
     }
 
-    // Draw paddle on canvas
+    
     function drawPaddle() {
         const paddle = gameState.paddle;
         context.fillStyle = 'green';
         context.fillRect(paddle.x, canvas.height - bottomRectHeight - gap, bottomRectWidth, bottomRectHeight);
     }
 
-    // Draw lives counter on canvas
+    
     function drawLives() {
         context.font = '16px Arial';
         context.fillStyle = 'red';
         context.fillText('Lives: ' + gameState.lives, canvas.width - 60, 15);
     }
+    
+    
+    document.getElementById('restartGameBtn').style.display = 'none';
 });

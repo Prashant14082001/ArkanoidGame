@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import IntegrityError
 import json
+import copy
 
 def SignUpPage(request):
     if request.method == 'POST':
@@ -65,7 +66,9 @@ def arkanoid_game(request):
     }
     return render(request, 'arkanoid.html', game_params)
 
-game_state = {
+
+
+initial_game_state = {
     'ball': {
         'x': 500,
         'y': 470,
@@ -84,10 +87,22 @@ game_state = {
         for j in range(8) for i in range(15)
     ],
     'lives': 2,
-    'gameOver':False
+    'game_over': False
 }
 
+game_state = copy.deepcopy(initial_game_state)
+
+def reset_game_state():
+    global game_state
+    game_state = copy.deepcopy(initial_game_state)
+
+def initial_game_state_view(request):
+    global game_state
+    reset_game_state()
+    return JsonResponse(initial_game_state)
+
 def reset_ball_and_paddle():
+    global game_state
     game_state['ball'] = {'x': 500, 'y': 470, 'speed_x': 2, 'speed_y': 2}
     game_state['paddle'] = {'x': 450, 'y': 520, 'width': 100, 'height': 20, 'speed': 60}
 
@@ -128,14 +143,10 @@ def game_state_view(request):
 
     if ball['y'] >= 550:
         game_state['lives'] -= 1
-        if game_state['lives'] >= 0:
+        if game_state['lives'] > 0:
             reset_ball_and_paddle()
         else:
-            game_state['lives'] = 2
-            game_state['bricks'] = [
-                {'x': i * 66, 'y': j * 26, 'status': 1}
-                for j in range(8) for i in range(15)
-            ]
-            reset_ball_and_paddle()
+            game_state['lives'] = 0
+            game_state['game_over'] = True
 
     return JsonResponse(game_state)

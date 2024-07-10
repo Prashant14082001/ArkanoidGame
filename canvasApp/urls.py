@@ -8,5 +8,6 @@ urlpatterns = [
     path('canvas/<str:room_name>/', canvas, name='canvas'),
     path('arkanoid/', arkanoid_game, name='arkanoid_game'),
     path('game_state/', game_state_view, name='game_state'),
+    path('initial_game_state/', initial_game_state_view, name='game_state'),
     
 ]
