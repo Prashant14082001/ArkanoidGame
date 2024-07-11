@@ -1,170 +1,194 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('arkanoidCanvas');
-    const context = canvas.getContext('2d');
+// document.addEventListener('DOMContentLoaded', () => {
+//     const canvas = document.getElementById('arkanoidCanvas');
+//     const context = canvas.getContext('2d');
+//     const roomName = document.getElementById('room-name').dataset.roomName;
+//     const gameSocket = new WebSocket('ws://' + window.location.host + '/ws/game/' + roomName + '/');
 
-    const ballRadius = Number(canvas.dataset.ballRadius);
-    const rectWidth = Number(canvas.dataset.rectWidth);
-    const rectHeight = Number(canvas.dataset.rectHeight);
-    const gap = Number(canvas.dataset.gap);
-    const bottomRectWidth = Number(canvas.dataset.bottomRectWidth);
-    const bottomRectHeight = Number(canvas.dataset.bottomRectHeight);
+//     let isController = false;
+//     let gameState = {};
+//     let gameInterval = null;
+//     let gameRunning = false;
+//     let restartGameRequested = false;
 
-    let gameState = {};
-    let gameInterval = null;
-    let gameRunning = false;
-    let restartGameRequested = false;
+//     // WebSocket message handling
+//     gameSocket.onmessage = function(e) {
+//         const data = JSON.parse(e.data);
+//         if (data.controller !== undefined) {
+//             isController = data.controller;
+//         } else {
+//             gameState = data.game_state;
+//             drawArkanoidElements();
+//         }
+//     };
 
-    
-    fetchInitialGameState();
+//     gameSocket.onclose = function(e) {
+//         console.error('Game socket closed unexpectedly');
+//     };
 
-    
-    document.getElementById('startGameBtn').addEventListener('click', () => {
-        if (!gameRunning) {
-            gameRunning = true;
-            startGame();
-        }
-    });
+//     // Start and restart game button event listeners
+//     document.getElementById('startGameBtn').addEventListener('click', () => {
+//         if (!gameRunning && isController) {
+//             gameRunning = true;
+//             startGame();
+//         }
+//     });
 
-    
-    document.getElementById('restartGameBtn').addEventListener('click', () => {
-        if (!gameRunning && restartGameRequested) {
-           
-            window.location.reload()
-            
-        }
-    });
+//     document.getElementById('restartGameBtn').addEventListener('click', () => {
+//         if (!gameRunning && restartGameRequested) {
+//             window.location.reload();
+//         }
+//     });
 
-    
-    function fetchInitialGameState() {
-        fetch('/initial_game_state/')
-            .then(response => response.json())
-            .then(data => {
-                gameState = data;
-                drawArkanoidElements();
-                checkGameState();
-                restartGameRequested = false;
-            });
-    }
+//     // Fetch initial game state
+//     fetchInitialGameState();
 
-    
-    function startGame() {
-        gameInterval = setInterval(fetchGameState, 10); 
-    }
+//     // Fetch initial game state from the server
+//     function fetchInitialGameState() {
+//         fetch('/initial_game_state/')
+//             .then(response => response.json())
+//             .then(data => {
+//                 gameState = data;
+//                 drawArkanoidElements();
+//                 checkGameState();
+//                 restartGameRequested = false;
+//             });
+//     }
 
-    
-    function fetchGameState() {
-        if (gameRunning) {
-            fetch('/game_state/')
-                .then(response => response.json())
-                .then(data => {
-                    gameState = data;
-                    drawArkanoidElements();
-                    checkGameState();
-                });
-        }
-    }
+//     // Start game interval
+//     function startGame() {
+//         gameInterval = setInterval(fetchGameState, 10); // Fetch game state every 10ms
+//     }
 
-    
-    function checkGameState() {
-        if (gameState.game_over) {
-            gameRunning = false;
-            showRestartButton();
-            restartGameRequested = true; 
-            clearInterval(gameInterval); 
-        }
-    }
+//     // Fetch game state if the current user is the controller
+//     function fetchGameState() {
+//         if (gameRunning && isController) {
+//             fetch('/game_state/')
+//                 .then(response => response.json())
+//                 .then(data => {
+//                     gameState = data;
+//                     drawArkanoidElements();
+//                     checkGameState();
+//                     sendGameState(gameState);  // Send game state to WebSocket
+//                 });
+//         }
+//     }
 
-    
-    function showRestartButton() {
-        const restartButton = document.getElementById('restartGameBtn');
-        restartButton.style.display = 'inline-block';
-    }
+//     // Send game state to WebSocket
+//     function sendGameState(gameState) {
+//         if (isController) {
+//             gameSocket.send(JSON.stringify({
+//                 'game_state': gameState
+//             }));
+//         }
+//     }
 
-    
-    document.addEventListener('keydown', (event) => {
-        if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-            sendKeyPress(event.key);
-        }
-    });
+//     // Check game state and show restart button if game is over
+//     function checkGameState() {
+//         if (gameState.game_over) {
+//             gameRunning = false;
+//             showRestartButton();
+//             restartGameRequested = true; 
+//             clearInterval(gameInterval); 
+//         }
+//     }
 
-    
-    function sendKeyPress(key) {
-        if (gameRunning) {
-            fetch('/game_state/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ key: key })
-            })
-            .then(response => response.json())
-            .then(data => {
-                gameState = data;
-                drawArkanoidElements();
-            });
-        }
-    }
+//     // Show restart button
+//     function showRestartButton() {
+//         const restartButton = document.getElementById('restartGameBtn');
+//         restartButton.style.display = 'inline-block';
+//     }
 
-    
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
+//     // Handle key press events
+//     document.addEventListener('keydown', (event) => {
+//         if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+//             sendKeyPress(event.key);
+//         }
+//     });
 
-    
-    function drawArkanoidElements() {
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        drawBricks();
-        drawBall();
-        drawPaddle();
-        drawLives();
-    }
+//     // Send key press to the server
+//     function sendKeyPress(key) {
+//         if (gameRunning && isController) {
+//             fetch('/game_state/', {
+//                 method: 'POST',
+//                 headers: {
+//                     'Content-Type': 'application/json',
+//                     'X-CSRFToken': getCookie('csrftoken')
+//                 },
+//                 body: JSON.stringify({ key: key })
+//             })
+//             .then(response => response.json())
+//             .then(data => {
+//                 gameState = data;
+//                 drawArkanoidElements();
+//             });
+//         }
+//     }
 
-    
-    function drawBricks() {
-        gameState.bricks.forEach(brick => {
-            if (brick.status === 1) {
-                context.fillStyle = 'blue';
-                context.fillRect(brick.x, brick.y, rectWidth, rectHeight);
-            }
-        });
-    }
+//     // Get CSRF token
+//     function getCookie(name) {
+//         let cookieValue = null;
+//         if (document.cookie && document.cookie !== '') {
+//             const cookies = document.cookie.split(';');
+//             for (let i = 0; i < cookies.length; i++) {
+//                 const cookie = cookies[i].trim();
+//                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
+//                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+//                     break;
+//                 }
+//             }
+//         }
+//         return cookieValue;
+//     }
 
-    
-    function drawBall() {
-        const ball = gameState.ball;
-        context.beginPath();
-        context.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
-        context.fillStyle = 'red';
-        context.fill();
-        context.closePath();
-    }
+//     // Draw Arkanoid elements on the canvas
+//     function drawArkanoidElements() {
+//         context.clearRect(0, 0, canvas.width, canvas.height);
+//         drawBricks();
+//         drawBall();
+//         drawPaddle();
+//         drawLives();
+//     }
 
-    
-    function drawPaddle() {
-        const paddle = gameState.paddle;
-        context.fillStyle = 'green';
-        context.fillRect(paddle.x, canvas.height - bottomRectHeight - gap, bottomRectWidth, bottomRectHeight);
-    }
+//     // Draw bricks
+//     function drawBricks() {
+//         const rectWidth = canvas.dataset.rectWidth;
+//         const rectHeight = canvas.dataset.rectHeight;
 
+//         gameState.bricks.forEach(brick => {
+//             if (brick.status === 1) {
+//                 context.fillStyle = 'blue';
+//                 context.fillRect(brick.x, brick.y, rectWidth, rectHeight);
+//             }
+//         });
+//     }
+
+//     // Draw ball
+//     function drawBall() {
+//         const ball = gameState.ball;
+//         const ballRadius = canvas.dataset.ballRadius;
+//         context.beginPath();
+//         context.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+//         context.fillStyle = 'red';
+//         context.fill();
+//         context.closePath();
+//     }
+
+//     // Draw paddle
+//     function drawPaddle() {
+//         const paddle = gameState.paddle;
+//         const bottomRectWidth = canvas.dataset.bottomRectWidth;
+//         const bottomRectHeight = canvas.dataset.bottomRectHeight;
+//         const gap = canvas.dataset.gap;
+//         context.fillStyle = 'green';
+//         context.fillRect(paddle.x, canvas.height - bottomRectHeight - gap, bottomRectWidth, bottomRectHeight);
+//     }
+
+//     // Draw lives
+//     function drawLives() {
+//         context.font = '16px Arial';
+//         context.fillStyle = 'red';
+//         context.fillText('Lives: ' + gameState.lives, canvas.width - 60, 15);
+//     }
     
-    function drawLives() {
-        context.font = '16px Arial';
-        context.fillStyle = 'red';
-        context.fillText('Lives: ' + gameState.lives, canvas.width - 60, 15);
-    }
-    
-    
-    document.getElementById('restartGameBtn').style.display = 'none';
-});
+//     document.getElementById('restartGameBtn').style.display = 'none';
+// });

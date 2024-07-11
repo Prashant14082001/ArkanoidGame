@@ -38,7 +38,7 @@ def LoginPage(request):
         user = authenticate(request,username=username,password=pass1)
         if user:
             login(request,user)
-            return redirect('canvas', room_name='room_name')
+            return redirect('arkanoid_game', room_name='room_name')
         else:
             messages.error(request, 'Invalid Credentials')
         
@@ -53,7 +53,8 @@ def LogOutPage(request):
 def canvas(request, room_name):
     return render(request, 'canvas.html', {'room_name': room_name})
 
-def arkanoid_game(request):
+@login_required(login_url='login')
+def arkanoid_game(request,room_name):
     game_params = {
         'canvas_width': 1000,
         'canvas_height': 550,
@@ -64,7 +65,7 @@ def arkanoid_game(request):
         'bottom_rect_width': 100,
         'bottom_rect_height': 20,
     }
-    return render(request, 'arkanoid.html', game_params)
+    return render(request, 'arkanoid.html', {'room_name': room_name,**game_params})
 
 
 
@@ -83,8 +84,8 @@ initial_game_state = {
         'speed': 60
     },
     'bricks': [
-        {'x': i * 66, 'y': j * 26, 'status': 1}
-        for j in range(8) for i in range(15)
+    {'x': 6 + i * 66 , 'y': 20 + j * 26 , 'status': 1}
+    for j in range(8) for i in range(15)
     ],
     'lives': 2,
     'game_over': False
@@ -99,7 +100,7 @@ def reset_game_state():
 def initial_game_state_view(request):
     global game_state
     reset_game_state()
-    return JsonResponse(initial_game_state)
+    return JsonResponse(game_state)
 
 def reset_ball_and_paddle():
     global game_state
