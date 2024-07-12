@@ -88,7 +88,8 @@ initial_game_state = {
     for j in range(8) for i in range(15)
     ],
     'lives': 2,
-    'game_over': False
+    'game_over': False,
+    'Score': 0,
 }
 
 game_state = copy.deepcopy(initial_game_state)
@@ -140,6 +141,7 @@ def game_state_view(request):
             if (brick['x'] <= ball['x'] <= brick['x'] + 60) and (brick['y'] <= ball['y'] <= brick['y'] + 20):
                 if ball['speed_y'] < 0:
                     brick['status'] = 0
+                    game_state['Score'] += 1
                 ball['speed_y'] *= -1
 
     if ball['y'] >= 550:

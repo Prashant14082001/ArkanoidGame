@@ -1,4 +1,4 @@
-{% load static %}
+{%load static%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +7,7 @@
     <title>Arkanoid Game</title>
     <link rel="stylesheet" href="{% static 'css/canvas.css' %}">
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/chat.css' %}">
 </head>
 <body>
     <!-- Navbar with logout option -->
@@ -34,9 +35,9 @@
 
     <!-- Canvas for Arkanoid game -->
     <div class="container">
-        <div class="row justify-content-center">
+        <div class="row d-flex justify-content-center">
             <div class="col-12">
-                <canvas id="arkanoidCanvas" width="{{ canvas_width }}" height="{{ canvas_height }}"
+                <canvas style="margin-right: 450px" id="arkanoidCanvas" width="{{ canvas_width }}" height="{{ canvas_height }}"
                         data-ball-radius="{{ ball_radius }}"
                         data-rect-width="{{ rect_width }}"
                         data-rect-height="{{ rect_height }}"
@@ -44,6 +45,15 @@
                         data-bottom-rect-width="{{ bottom_rect_width }}"
                         data-bottom-rect-height="{{ bottom_rect_height }}"></canvas>
             </div>
+        </div>
+    </div>
+
+    <!-- Chat container -->
+    <div class="chat-container">
+        <div id="chat-messages"></div>
+        <div class="input-group mt-3">
+            <input type="text" class="form-control message-input" placeholder="Type your message...">
+            <button class="btn btn-primary send-button">Send</button>
         </div>
     </div>
 
@@ -55,45 +65,85 @@
             const context = canvas.getContext('2d');
             const roomName = document.getElementById('room-name').dataset.roomName;
             const gameSocket = new WebSocket('ws://' + window.location.host + '/ws/game/' + roomName + '/');
-
+            const startGameBtn = document.getElementById('startGameBtn');
+            const restartGameBtn = document.getElementById('restartGameBtn');
+            const chatInput = document.querySelector('.message-input');
+            const sendButton = document.querySelector('.send-button');
+            const chatMessages = document.getElementById('chat-messages');
+            
             let isController = false;
             let gameState = {};
-            let gameInterval = null;
             let gameRunning = false;
-            let restartGameRequested = false;
-
-            // WebSocket message handling
+            let gamePaused = false;
+        
+            
             gameSocket.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                if (data.controller !== undefined) {
-                    isController = data.controller;
-                } else {
-                    gameState = data.game_state;
-                    drawArkanoidElements();
-                }
-            };
-
+            const data = JSON.parse(e.data);
+            
+            if (data.type === 'game_state') {
+                gameState = data.game_state;
+                drawArkanoidElements();
+            } else if (data.type === 'chat_message') {
+                const messageElement = document.createElement('div');
+                messageElement.textContent = `${data.username}: ${data.message}`;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else if (data.type === 'controller_left') {
+                const messageElement = document.createElement('div');
+                messageElement.textContent = data.message;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else if (data.controller !== undefined) {
+                isController = data.controller;
+            }
+        };
+        
             gameSocket.onclose = function(e) {
                 console.error('Game socket closed unexpectedly');
             };
-
-            // Start and restart game button event listeners
-            document.getElementById('startGameBtn').addEventListener('click', () => {
+        
+            // Start and pause game button event listener
+            startGameBtn.addEventListener('click', () => {
                 if (!gameRunning && isController) {
                     gameRunning = true;
+                    gamePaused = false;
                     startGame();
+                    startGameBtn.textContent = 'Pause Game';
+                } else if (gameRunning) {
+                    gamePaused = !gamePaused;
+                    if (gamePaused) {
+                        startGameBtn.textContent = 'Resume Game';
+                    } else {
+                        startGameBtn.textContent = 'Pause Game';
+                        requestAnimationFrame(gameLoop);
+                    }
+                }
+            });
+        
+            restartGameBtn.addEventListener('click', () => {
+                if (!gameRunning) {
+                    window.location.reload();
+                }
+            });
+        
+            // Chat message sending
+            sendButton.addEventListener('click', () => {
+                if (chatInput.value.trim() !== '') {
+                    sendChatMessage(chatInput.value);
+                    chatInput.value = '';
                 }
             });
 
-            document.getElementById('restartGameBtn').addEventListener('click', () => {
-                if (!gameRunning && restartGameRequested) {
-                    window.location.reload();
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && chatInput.value.trim() !== '') {
+                    sendChatMessage(chatInput.value);
+                    chatInput.value = '';
                 }
             });
 
             // Fetch initial game state
             fetchInitialGameState();
-
+        
             // Fetch initial game state from the server
             function fetchInitialGameState() {
                 fetch('/initial_game_state/')
@@ -102,15 +152,23 @@
                         gameState = data;
                         drawArkanoidElements();
                         checkGameState();
-                        restartGameRequested = false;
                     });
             }
-
-            // Start game interval
+        
+            // Start game loop using requestAnimationFrame
             function startGame() {
-                gameInterval = setInterval(fetchGameState, 10); // Fetch game state every 10ms
+                requestAnimationFrame(gameLoop);
             }
-
+        
+            function gameLoop() {
+                if (!gamePaused && gameRunning && isController) {
+                    fetchGameState();
+                }
+                if (gameRunning && !gamePaused) {
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+        
             // Fetch game state if the current user is the controller
             function fetchGameState() {
                 if (gameRunning && isController) {
@@ -124,39 +182,54 @@
                         });
                 }
             }
-
+        
             // Send game state to WebSocket
             function sendGameState(gameState) {
-                if (isController) {
+                if (isController && !gamePaused) {
                     gameSocket.send(JSON.stringify({
+                        'type': 'game_state',
                         'game_state': gameState
                     }));
                 }
             }
-
+        
+            // Send chat message to WebSocket
+            function sendChatMessage(message) {
+                gameSocket.send(JSON.stringify({
+                    'type': 'chat_message',
+                    'message': message
+                }));
+            }
+        
+            // Display chat message
+            function displayChatMessage(username, message) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                messageElement.innerHTML = `<strong>${username}</strong>: ${message}`;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        
             // Check game state and show restart button if game is over
             function checkGameState() {
                 if (gameState.game_over) {
                     gameRunning = false;
                     showRestartButton();
-                    restartGameRequested = true; 
-                    clearInterval(gameInterval); 
                 }
             }
-
+        
             // Show restart button
             function showRestartButton() {
-                const restartButton = document.getElementById('restartGameBtn');
-                restartButton.style.display = 'inline-block';
+                restartGameBtn.style.display = 'inline-block';
             }
-
+        
             // Handle key press events
             document.addEventListener('keydown', (event) => {
-                if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+                if (['ArrowLeft', 'ArrowRight'].includes(event.key) && !gamePaused) {
                     sendKeyPress(event.key);
                 }
             });
-
+        
             // Send key press to the server
             function sendKeyPress(key) {
                 if (gameRunning && isController) {
@@ -175,7 +248,7 @@
                     });
                 }
             }
-
+        
             // Get CSRF token
             function getCookie(name) {
                 let cookieValue = null;
@@ -191,7 +264,7 @@
                 }
                 return cookieValue;
             }
-
+        
             // Draw Arkanoid elements on the canvas
             function drawArkanoidElements() {
                 context.clearRect(0, 0, canvas.width, canvas.height);
@@ -199,13 +272,14 @@
                 drawBall();
                 drawPaddle();
                 drawLives();
+                drawScore();
             }
-
+        
             // Draw bricks
             function drawBricks() {
                 const rectWidth = canvas.dataset.rectWidth;
                 const rectHeight = canvas.dataset.rectHeight;
-
+        
                 gameState.bricks.forEach(brick => {
                     if (brick.status === 1) {
                         context.fillStyle = 'blue';
@@ -213,7 +287,7 @@
                     }
                 });
             }
-
+        
             // Draw ball
             function drawBall() {
                 const ball = gameState.ball;
@@ -224,7 +298,7 @@
                 context.fill();
                 context.closePath();
             }
-
+        
             // Draw paddle
             function drawPaddle() {
                 const paddle = gameState.paddle;
@@ -234,17 +308,34 @@
                 context.fillStyle = 'green';
                 context.fillRect(paddle.x, canvas.height - bottomRectHeight - gap, bottomRectWidth, bottomRectHeight);
             }
-
+        
             // Draw lives
             function drawLives() {
                 context.font = '16px Arial';
                 context.fillStyle = 'red';
                 context.fillText('Lives: ' + gameState.lives, canvas.width - 60, 15);
             }
-            
-            document.getElementById('restartGameBtn').style.display = 'none';
+        
+            // Draw score
+            function drawScore() {
+                context.font = '16px Arial';
+                context.fillStyle = 'red';
+                context.fillText('Score: ' + gameState.Score, canvas.width - 995, 15);
+            }
+        
+            restartGameBtn.style.display = 'none';
+        
+            // Handle visibility change
+            document.addEventListener('visibilitychange', () => {
+                gamePaused = document.hidden;
+                if (gamePaused) {
+                    startGameBtn.textContent = 'Resume Game';
+                }
+            });
         });
-    </script>
-    
+        </script>
 </body>
 </html>
+
+
+    
