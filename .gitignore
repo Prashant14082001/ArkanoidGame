@@ -1,2 +1,5 @@
 .env
 .db.sqlite3
+myenv/
+__pycache__/
+celerybeat-schedule.db

@@ -142,3 +142,16 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BEAT_SCHEDULE = {
+    'sum_two_numbers_every_ten_seconds': {
+        'task': 'WeatherApp.tasks.sum_numbers',
+        'schedule': 10.0,
+        'args': (5, 7)  # Example numbers to sum
+    },
+}
+CELERY_TIMEZONE = 'UTC'
